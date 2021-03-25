@@ -2,11 +2,13 @@ class WinesController < ApplicationController
   before_action :set_wine, only: %i[ show edit update destroy ]
   before_action :set_strains, only: %i[ new edit create ]
   before_action :set_wine_strains, only: %i[ new edit create ]
+  before_action :set_wine_strains_instances, only: %i[ new edit]
+  
 
   # GET /wines or /wines.json
   def index
-    @wines = Wine.all
-    @wines = Wine.order(name: :asc)
+    @wines = Wine.includes([wine_strains: [:strain]]).all
+        #@wines = Wine.order(name: :asc)
   end
 
   # GET /wines/1 or /wines/1.json
@@ -16,23 +18,27 @@ class WinesController < ApplicationController
   # GET /wines/new
   def new
     @wine = Wine.new
-    @strains = Strain.order(name: :asc)
+    @strains = Strain.pluck(:name, :id)
+    @strains.each do
+      #Crear nuevas instancias para formulario anidado con build, recibe el wine.id
+      @wine.wine_strains.build
+    end
+    
   end
 
   # GET /wines/1/edit
   def edit
-    @strains = Strain.order(name: :asc)
+    @strains = Strain.pluck(:name, :id)
+    #Crear nuevas instancias para formulario anidado con build, recibe el wine.id
+    @wine.wine_strains.build
   end
 
   # POST /wines or /wines.json
   def create
-    @wine = Wine.new(name: wine_params[:name])
+    @wine = Wine.new(wine_params)
 
     respond_to do |format|
       if @wine.save
-        wine_params[:strain_ids].reject(&:empty?).each_with_index do |id, index|
-          WineStrain.create!(wine_id: @wine.id, strain_id: id, percentage: wine_params[:percentages][index])
-        end
         format.html { redirect_to @wine, notice: 'Wine was successfully created.' }
         format.json { render :show, status: :created, location: @wine }
       else
@@ -44,9 +50,9 @@ class WinesController < ApplicationController
 
 
   # PATCH/PUT /wines/1 or /wines/1.json
-  def update(wine_params)
+  def update
     respond_to do |format|
-      if @wine.update
+      if @wine.update(wine_params)
         format.html { redirect_to @wine, notice: "Wine was successfully updated." }
         format.json { render :show, status: :ok, location: @wine }
       else
@@ -79,8 +85,14 @@ class WinesController < ApplicationController
       @wine_strains = WineStrain.all
     end
 
+    def set_wine_strains_instances
+      
+    end
+    
+
+
     # Only allow a list of trusted parameters through.
     def wine_params
-      params.require(:wine).permit(:name, strain_ids: [], percentages: [])
+      params.require(:wine).permit(:name, wine_strains_attributes: [:id, :percentage, :wine_id, :strain_id])
     end
 end
