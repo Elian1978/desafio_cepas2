@@ -2,8 +2,7 @@ class WinesController < ApplicationController
   before_action :set_wine, only: %i[ show edit update destroy ]
   before_action :set_strains, only: %i[ new edit create ]
   before_action :set_wine_strains, only: %i[ new edit create ]
-  before_action :set_wine_strains_instances, only: %i[ new edit]
-  
+  before_action :authorize_admin, except: %i[ index show]  
 
   # GET /wines or /wines.json
   def index
@@ -85,12 +84,19 @@ class WinesController < ApplicationController
       @wine_strains = WineStrain.all
     end
 
-    def set_wine_strains_instances
-      
+    def authorize_admin
+      #unless current_user.present? && current_user.admin? es lo mismo que la linea de abajo
+      if user_signed_in?
+        unless current_user.admin? 
+            flash[:notice] = 'Debes ser administrador para modificar vinos'
+            redirect_to wines_path
+        end
+        else 
+          flash[:notice] = 'Debes iniciar sesion para modificar vinos'
+          redirect_to new_user_session_path
+      end
     end
-    
-
-
+   
     # Only allow a list of trusted parameters through.
     def wine_params
       params.require(:wine).permit(:name, wine_strains_attributes: [:id, :percentage, :wine_id, :strain_id])
